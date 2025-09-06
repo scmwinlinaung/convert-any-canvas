@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,24 +15,75 @@ interface ConversionFile {
   targetFormat: string;
   status: 'pending' | 'converting' | 'completed' | 'error';
   downloadUrl?: string;
+  convertedBlob?: Blob;
 }
 
 const supportedFormats = [
   { value: 'jpeg', label: 'JPEG', category: 'web' },
+  { value: 'jpg', label: 'JPG', category: 'web' },
   { value: 'png', label: 'PNG', category: 'web' },
   { value: 'webp', label: 'WEBP', category: 'web' },
-  { value: 'svg', label: 'SVG', category: 'web' },
   { value: 'gif', label: 'GIF', category: 'web' },
-  { value: 'tiff', label: 'TIFF', category: 'photography' },
   { value: 'bmp', label: 'BMP', category: 'photography' },
-  { value: 'heic', label: 'HEIC', category: 'photography' },
-  { value: 'pdf', label: 'PDF', category: 'design' },
+  { value: 'tiff', label: 'TIFF', category: 'photography' },
+  { value: 'ico', label: 'ICO', category: 'web' },
 ];
+
+// Image conversion function using HTML5 Canvas
+const convertImage = async (file: File, targetFormat: string, quality: number = 0.9): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('Canvas context not available'));
+          return;
+        }
+
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        
+        // Handle transparency for formats that don't support it
+        if (targetFormat === 'jpeg' || targetFormat === 'jpg') {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        ctx.drawImage(img, 0, 0);
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Conversion failed'));
+          }
+        }, `image/${targetFormat}`, quality);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = URL.createObjectURL(file);
+  });
+};
 
 export const ImageConverter = () => {
   const [files, setFiles] = useState<ConversionFile[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [defaultTargetFormat, setDefaultTargetFormat] = useState('png');
+
+  // Check for stored preferences on component mount
+  useEffect(() => {
+    const selectedFormat = localStorage.getItem('selectedFormat');
+    if (selectedFormat) {
+      setDefaultTargetFormat(selectedFormat);
+      localStorage.removeItem('selectedFormat'); // Clear after use
+    }
+  }, []);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -112,24 +163,30 @@ export const ImageConverter = () => {
     ));
 
     try {
-      // Simulate conversion process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log(`Converting ${conversionFile.name} to ${conversionFile.targetFormat}`);
       
-      // Create a download URL (in real implementation, this would be the converted file)
-      const downloadUrl = URL.createObjectURL(conversionFile.file);
+      // Perform actual image conversion
+      const convertedBlob = await convertImage(
+        conversionFile.file, 
+        conversionFile.targetFormat === 'jpg' ? 'jpeg' : conversionFile.targetFormat,
+        0.9
+      );
+      
+      const downloadUrl = URL.createObjectURL(convertedBlob);
       
       setFiles(prev => prev.map(file => 
         file.id === conversionFile.id 
-          ? { ...file, status: 'completed', downloadUrl } 
+          ? { ...file, status: 'completed', downloadUrl, convertedBlob } 
           : file
       ));
       
       toast.success(`${conversionFile.name} converted to ${conversionFile.targetFormat.toUpperCase()}`);
     } catch (error) {
+      console.error('Conversion error:', error);
       setFiles(prev => prev.map(file => 
         file.id === conversionFile.id ? { ...file, status: 'error' } : file
       ));
-      toast.error(`Failed to convert ${conversionFile.name}`);
+      toast.error(`Failed to convert ${conversionFile.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -139,18 +196,25 @@ export const ImageConverter = () => {
   };
 
   const downloadFile = (conversionFile: ConversionFile) => {
-    if (conversionFile.downloadUrl) {
+    if (conversionFile.downloadUrl && conversionFile.convertedBlob) {
       const link = document.createElement('a');
       link.href = conversionFile.downloadUrl;
-      link.download = `${conversionFile.name.split('.')[0]}.${conversionFile.targetFormat}`;
+      
+      // Create proper filename with new extension
+      const originalName = conversionFile.name.split('.').slice(0, -1).join('.');
+      const newExtension = conversionFile.targetFormat === 'jpeg' ? 'jpg' : conversionFile.targetFormat;
+      link.download = `${originalName}.${newExtension}`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      toast.success(`Downloaded: ${link.download}`);
     }
   };
 
   return (
-    <section className="py-20 bg-gradient-secondary">
+    <section id="converter" className="py-20 bg-gradient-secondary">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold mb-4">
@@ -196,7 +260,7 @@ export const ImageConverter = () => {
                   Drag and drop images here, or click to browse
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Supports: JPEG, PNG, WEBP, SVG, GIF, TIFF, BMP, HEIC, and more
+                  Supports: JPEG, PNG, WEBP, GIF, BMP, TIFF, ICO and more
                 </p>
               </div>
               

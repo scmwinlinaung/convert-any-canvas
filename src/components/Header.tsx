@@ -10,6 +10,13 @@ const navigation = [
   { name: "Help", href: "#help" }
 ];
 
+const scrollToSection = (href: string) => {
+  const element = document.querySelector(href);
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+};
+
 export const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -30,13 +37,13 @@ export const Header = () => {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
             {navigation.map((item) => (
-              <a
+              <button
                 key={item.name}
-                href={item.href}
+                onClick={() => scrollToSection(item.href)}
                 className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
               >
                 {item.name}
-              </a>
+              </button>
             ))}
           </nav>
 
@@ -56,7 +63,7 @@ export const Header = () => {
                 <span>Free</span>
               </div>
             </div>
-            <Button variant="hero" size="sm">
+            <Button variant="hero" size="sm" onClick={() => scrollToSection('#converter')}>
               Start Converting
             </Button>
           </div>
@@ -81,14 +88,16 @@ export const Header = () => {
 
                 <nav className="flex flex-col gap-4 mb-8">
                   {navigation.map((item) => (
-                    <a
+                    <button
                       key={item.name}
-                      href={item.href}
-                      onClick={() => setIsOpen(false)}
-                      className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2"
+                      onClick={() => {
+                        scrollToSection(item.href);
+                        setIsOpen(false);
+                      }}
+                      className="text-lg font-medium text-foreground hover:text-primary transition-colors py-2 text-left"
                     >
                       {item.name}
-                    </a>
+                    </button>
                   ))}
                 </nav>
 
@@ -107,7 +116,10 @@ export const Header = () => {
                       <span className="text-xs font-medium">Free</span>
                     </div>
                   </div>
-                  <Button variant="hero" size="lg" className="w-full" onClick={() => setIsOpen(false)}>
+                  <Button variant="hero" size="lg" className="w-full" onClick={() => {
+                    scrollToSection('#converter');
+                    setIsOpen(false);
+                  }}>
                     Start Converting
                   </Button>
                 </div>

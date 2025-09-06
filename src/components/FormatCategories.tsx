@@ -59,8 +59,28 @@ const formatCategories = [
 ];
 
 export const FormatCategories = () => {
+  const handleCategoryClick = (categoryId: string) => {
+    // Scroll to converter and pre-select category
+    const element = document.querySelector('#converter');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    // Store selected category in localStorage for the converter to pick up
+    localStorage.setItem('selectedCategory', categoryId);
+  };
+
+  const handleFormatClick = (format: string) => {
+    // Scroll to converter and pre-select format
+    const element = document.querySelector('#converter');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    // Store selected format in localStorage for the converter to pick up
+    localStorage.setItem('selectedFormat', format.toLowerCase());
+  };
+
   return (
-    <section className="py-20 bg-background">
+    <section id="formats" className="py-20 bg-background">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold mb-4">
@@ -79,6 +99,7 @@ export const FormatCategories = () => {
               <Card 
                 key={category.id}
                 className="group relative p-6 hover:shadow-medium transition-smooth cursor-pointer border-2 hover:border-primary/20"
+                onClick={() => handleCategoryClick(category.id)}
               >
                 {category.popular && (
                   <Badge className="absolute -top-2 -right-2 bg-gradient-primary text-primary-foreground">
@@ -107,6 +128,10 @@ export const FormatCategories = () => {
                         key={format} 
                         variant="secondary" 
                         className="text-xs hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleFormatClick(format);
+                        }}
                       >
                         {format}
                       </Badge>
@@ -141,6 +166,15 @@ export const FormatCategories = () => {
                 key={conversion}
                 variant="outline"
                 className="hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer px-4 py-2"
+                onClick={() => {
+                  const element = document.querySelector('#converter');
+                  if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                  // Store the conversion suggestion
+                  const [from, to] = conversion.split(' → ');
+                  localStorage.setItem('selectedFormat', to.toLowerCase());
+                }}
               >
                 {conversion}
               </Badge>
