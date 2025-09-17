@@ -11,13 +11,13 @@ export const Hero = () => {
           <div className="space-y-8">
             <div className="space-y-4">
               <h1 className="text-5xl lg:text-6xl font-bold leading-tight">
-                Convert Any Image
+                Convert Images &
                 <span className="bg-gradient-primary bg-clip-text text-transparent block">
-                  In Seconds
+                  Compress Videos
                 </span>
               </h1>
               <p className="text-xl text-muted-foreground leading-relaxed max-w-lg">
-                Transform images between all formats instantly. Support for Web, Photography, Design, Editing, and 3D formats. Fast, secure, and completely free.
+                Transform images between all formats and compress videos to reduce file size. Support for Web, Photography, Design, and Video formats. Fast, secure, and completely free.
               </p>
             </div>
 

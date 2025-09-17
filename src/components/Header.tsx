@@ -4,7 +4,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, FileImage, Zap, Shield, Globe } from "lucide-react";
 
 const navigation = [
-  { name: "Convert", href: "#converter" },
+  { name: "Images", href: "#converter" },
+  { name: "Videos", href: "#video-compressor" },
   { name: "Formats", href: "#formats" }, 
   { name: "Features", href: "#features" },
   { name: "Help", href: "#help" }
@@ -30,7 +31,7 @@ export const Header = () => {
               <FileImage className="w-5 h-5 text-white" />
             </div>
             <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              ImageConvert Pro
+              ConvertPro
             </span>
           </div>
 
@@ -82,7 +83,7 @@ export const Header = () => {
                     <FileImage className="w-5 h-5 text-white" />
                   </div>
                   <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                    ImageConvert Pro
+                    ConvertPro
                   </span>
                 </div>
 
