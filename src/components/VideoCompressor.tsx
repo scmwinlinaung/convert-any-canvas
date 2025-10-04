@@ -141,22 +141,7 @@ export const VideoCompressor = () => {
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    handleFiles(droppedFiles);
-  }, []);
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      handleFiles(selectedFiles);
-    }
-  };
-
-  const handleFiles = (newFiles: File[]) => {
+  const handleFiles = useCallback((newFiles: File[]) => {
     const videoFiles = newFiles.filter(file => file.type.startsWith('video/'));
     
     if (videoFiles.length !== newFiles.length) {
@@ -178,6 +163,21 @@ export const VideoCompressor = () => {
     
     if (videoFileObjects.length > 0) {
       toast.success(`Added ${videoFileObjects.length} video${videoFileObjects.length > 1 ? 's' : ''} for compression`);
+    }
+  }, [defaultTargetFormat, defaultQuality]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleFiles(droppedFiles);
+  }, [handleFiles]);
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      handleFiles(selectedFiles);
     }
   };
 

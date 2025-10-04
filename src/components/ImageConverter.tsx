@@ -108,22 +108,7 @@ export const ImageConverter = () => {
     setIsDragOver(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    handleFiles(droppedFiles);
-  }, []);
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      handleFiles(selectedFiles);
-    }
-  };
-
-  const handleFiles = (newFiles: File[]) => {
+  const handleFiles = useCallback((newFiles: File[]) => {
     const imageFiles = newFiles.filter(file => file.type.startsWith('image/'));
     
     if (imageFiles.length !== newFiles.length) {
@@ -144,6 +129,21 @@ export const ImageConverter = () => {
     
     if (conversionFiles.length > 0) {
       toast.success(`Added ${conversionFiles.length} image${conversionFiles.length > 1 ? 's' : ''} for conversion`);
+    }
+  }, [defaultTargetFormat]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleFiles(droppedFiles);
+  }, [handleFiles]);
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      handleFiles(selectedFiles);
     }
   };
 
