@@ -34,6 +34,15 @@ const supportedFormats = [
   { value: 'ico', label: 'ICO', category: 'web' },
 ];
 
+const presetDimensions = [
+  { label: '1920×1080', width: 1920, height: 1080, name: 'Full HD' },
+  { label: '1280×720', width: 1280, height: 720, name: 'HD' },
+  { label: '1024×1024', width: 1024, height: 1024, name: 'Square' },
+  { label: '800×600', width: 800, height: 600, name: 'SVGA' },
+  { label: '512×512', width: 512, height: 512, name: 'Thumbnail' },
+  { label: '256×256', width: 256, height: 256, name: 'Icon' },
+];
+
 // Image conversion function using HTML5 Canvas
 const convertImage = async (
   file: File, 
@@ -376,22 +385,22 @@ export const ImageConverter = () => {
 
               <div className="space-y-4">
                 {files.map((file) => (
-                  <div key={file.id} className="flex items-center gap-4 p-4 bg-background rounded-lg border">
-                    <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-                      <FileImage className="w-6 h-6 text-muted-foreground" />
-                    </div>
+                  <div key={file.id} className="flex flex-col gap-4 p-4 bg-background rounded-lg border">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
+                        <FileImage className="w-6 h-6 text-muted-foreground" />
+                      </div>
                     
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">{file.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {file.size} • {file.originalFormat.toUpperCase()}
-                        {file.originalWidth && file.originalHeight && (
-                          <> • {file.originalWidth}×{file.originalHeight}</>
-                        )}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium truncate">{file.name}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {file.size} • {file.originalFormat.toUpperCase()}
+                          {file.originalWidth && file.originalHeight && (
+                            <> • {file.originalWidth}×{file.originalHeight}</>
+                          )}
+                        </p>
+                      </div>
+                      
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">{file.originalFormat.toUpperCase()}</Badge>
                         <span className="text-muted-foreground">→</span>
@@ -414,34 +423,53 @@ export const ImageConverter = () => {
                       </div>
                       
                       {file.originalWidth && file.originalHeight && (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant={file.shouldResize ? "default" : "outline"}
-                            onClick={() => toggleResize(file.id)}
-                            disabled={file.status === 'converting'}
-                          >
-                            Resize
-                          </Button>
+                        <div className="flex flex-col gap-2 w-full">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant={file.shouldResize ? "default" : "outline"}
+                              onClick={() => toggleResize(file.id)}
+                              disabled={file.status === 'converting'}
+                            >
+                              Resize
+                            </Button>
+                            {file.shouldResize && (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  value={file.targetWidth || ''}
+                                  onChange={(e) => updateDimensions(file.id, parseInt(e.target.value) || 0, file.targetHeight || 0)}
+                                  className="w-16 px-2 py-1 text-sm border rounded"
+                                  disabled={file.status === 'converting'}
+                                  min="1"
+                                />
+                                <span className="text-xs text-muted-foreground">×</span>
+                                <input
+                                  type="number"
+                                  value={file.targetHeight || ''}
+                                  onChange={(e) => updateDimensions(file.id, file.targetWidth || 0, parseInt(e.target.value) || 0)}
+                                  className="w-16 px-2 py-1 text-sm border rounded"
+                                  disabled={file.status === 'converting'}
+                                  min="1"
+                                />
+                              </div>
+                            )}
+                          </div>
+                          
                           {file.shouldResize && (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                value={file.targetWidth || ''}
-                                onChange={(e) => updateDimensions(file.id, parseInt(e.target.value) || 0, file.targetHeight || 0)}
-                                className="w-16 px-2 py-1 text-sm border rounded"
-                                disabled={file.status === 'converting'}
-                                min="1"
-                              />
-                              <span className="text-xs text-muted-foreground">×</span>
-                              <input
-                                type="number"
-                                value={file.targetHeight || ''}
-                                onChange={(e) => updateDimensions(file.id, file.targetWidth || 0, parseInt(e.target.value) || 0)}
-                                className="w-16 px-2 py-1 text-sm border rounded"
-                                disabled={file.status === 'converting'}
-                                min="1"
-                              />
+                            <div className="flex flex-wrap gap-1">
+                              {presetDimensions.map((preset) => (
+                                <Button
+                                  key={preset.label}
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => updateDimensions(file.id, preset.width, preset.height)}
+                                  disabled={file.status === 'converting'}
+                                  className="text-xs h-7"
+                                >
+                                  {preset.label}
+                                </Button>
+                              ))}
                             </div>
                           )}
                         </div>
