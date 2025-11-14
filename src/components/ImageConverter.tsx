@@ -16,6 +16,11 @@ interface ConversionFile {
   status: 'pending' | 'converting' | 'completed' | 'error';
   downloadUrl?: string;
   convertedBlob?: Blob;
+  originalWidth?: number;
+  originalHeight?: number;
+  targetWidth?: number;
+  targetHeight?: number;
+  shouldResize?: boolean;
 }
 
 const supportedFormats = [
@@ -30,7 +35,13 @@ const supportedFormats = [
 ];
 
 // Image conversion function using HTML5 Canvas
-const convertImage = async (file: File, targetFormat: string, quality: number = 0.9): Promise<Blob> => {
+const convertImage = async (
+  file: File, 
+  targetFormat: string, 
+  quality: number = 0.9,
+  targetWidth?: number,
+  targetHeight?: number
+): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -43,8 +54,9 @@ const convertImage = async (file: File, targetFormat: string, quality: number = 
           return;
         }
 
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        // Use target dimensions if provided, otherwise use original
+        canvas.width = targetWidth || img.naturalWidth;
+        canvas.height = targetHeight || img.naturalHeight;
         
         // Handle transparency for formats that don't support it
         if (targetFormat === 'jpeg' || targetFormat === 'jpg') {
@@ -52,7 +64,7 @@ const convertImage = async (file: File, targetFormat: string, quality: number = 
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
         
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         
         canvas.toBlob((blob) => {
           if (blob) {
@@ -115,21 +127,48 @@ export const ImageConverter = () => {
       toast.error("Some files were skipped as they are not images");
     }
 
-    const conversionFiles: ConversionFile[] = imageFiles.map(file => ({
-      id: crypto.randomUUID(),
-      file,
-      name: file.name,
-      size: formatFileSize(file.size),
-      originalFormat: getFileFormat(file.name),
-      targetFormat: defaultTargetFormat,
-      status: 'pending'
-    }));
+    // Load images to get dimensions
+    const filePromises = imageFiles.map(file => {
+      return new Promise<ConversionFile>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          resolve({
+            id: crypto.randomUUID(),
+            file,
+            name: file.name,
+            size: formatFileSize(file.size),
+            originalFormat: getFileFormat(file.name),
+            targetFormat: defaultTargetFormat,
+            status: 'pending',
+            originalWidth: img.naturalWidth,
+            originalHeight: img.naturalHeight,
+            targetWidth: img.naturalWidth,
+            targetHeight: img.naturalHeight,
+            shouldResize: false
+          });
+        };
+        img.onerror = () => {
+          resolve({
+            id: crypto.randomUUID(),
+            file,
+            name: file.name,
+            size: formatFileSize(file.size),
+            originalFormat: getFileFormat(file.name),
+            targetFormat: defaultTargetFormat,
+            status: 'pending'
+          });
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    });
 
-    setFiles(prev => [...prev, ...conversionFiles]);
-    
-    if (conversionFiles.length > 0) {
-      toast.success(`Added ${conversionFiles.length} image${conversionFiles.length > 1 ? 's' : ''} for conversion`);
-    }
+    Promise.all(filePromises).then(conversionFiles => {
+      setFiles(prev => [...prev, ...conversionFiles]);
+      
+      if (conversionFiles.length > 0) {
+        toast.success(`Added ${conversionFiles.length} image${conversionFiles.length > 1 ? 's' : ''} for conversion`);
+      }
+    });
   }, [defaultTargetFormat]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -157,6 +196,18 @@ export const ImageConverter = () => {
     ));
   };
 
+  const updateDimensions = (id: string, width: number, height: number) => {
+    setFiles(prev => prev.map(file => 
+      file.id === id ? { ...file, targetWidth: width, targetHeight: height, shouldResize: true } : file
+    ));
+  };
+
+  const toggleResize = (id: string) => {
+    setFiles(prev => prev.map(file => 
+      file.id === id ? { ...file, shouldResize: !file.shouldResize } : file
+    ));
+  };
+
   const convertFile = async (conversionFile: ConversionFile) => {
     setFiles(prev => prev.map(file => 
       file.id === conversionFile.id ? { ...file, status: 'converting' } : file
@@ -165,11 +216,13 @@ export const ImageConverter = () => {
     try {
       console.log(`Converting ${conversionFile.name} to ${conversionFile.targetFormat}`);
       
-      // Perform actual image conversion
+      // Perform actual image conversion with optional resizing
       const convertedBlob = await convertImage(
         conversionFile.file, 
         conversionFile.targetFormat === 'jpg' ? 'jpeg' : conversionFile.targetFormat,
-        0.9
+        0.9,
+        conversionFile.shouldResize ? conversionFile.targetWidth : undefined,
+        conversionFile.shouldResize ? conversionFile.targetHeight : undefined
       );
       
       const downloadUrl = URL.createObjectURL(convertedBlob);
@@ -180,7 +233,10 @@ export const ImageConverter = () => {
           : file
       ));
       
-      toast.success(`${conversionFile.name} converted to ${conversionFile.targetFormat.toUpperCase()}`);
+      const resizeInfo = conversionFile.shouldResize 
+        ? ` and resized to ${conversionFile.targetWidth}x${conversionFile.targetHeight}` 
+        : '';
+      toast.success(`${conversionFile.name} converted to ${conversionFile.targetFormat.toUpperCase()}${resizeInfo}`);
     } catch (error) {
       console.error('Conversion error:', error);
       setFiles(prev => prev.map(file => 
@@ -329,28 +385,67 @@ export const ImageConverter = () => {
                       <h4 className="font-medium truncate">{file.name}</h4>
                       <p className="text-sm text-muted-foreground">
                         {file.size} • {file.originalFormat.toUpperCase()}
+                        {file.originalWidth && file.originalHeight && (
+                          <> • {file.originalWidth}×{file.originalHeight}</>
+                        )}
                       </p>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{file.originalFormat.toUpperCase()}</Badge>
-                      <span className="text-muted-foreground">→</span>
-                      <Select 
-                        value={file.targetFormat} 
-                        onValueChange={(value) => updateTargetFormat(file.id, value)}
-                        disabled={file.status === 'converting'}
-                      >
-                        <SelectTrigger className="w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {supportedFormats.map((format) => (
-                            <SelectItem key={format.value} value={format.value}>
-                              {format.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{file.originalFormat.toUpperCase()}</Badge>
+                        <span className="text-muted-foreground">→</span>
+                        <Select 
+                          value={file.targetFormat} 
+                          onValueChange={(value) => updateTargetFormat(file.id, value)}
+                          disabled={file.status === 'converting'}
+                        >
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {supportedFormats.map((format) => (
+                              <SelectItem key={format.value} value={format.value}>
+                                {format.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {file.originalWidth && file.originalHeight && (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant={file.shouldResize ? "default" : "outline"}
+                            onClick={() => toggleResize(file.id)}
+                            disabled={file.status === 'converting'}
+                          >
+                            Resize
+                          </Button>
+                          {file.shouldResize && (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                value={file.targetWidth || ''}
+                                onChange={(e) => updateDimensions(file.id, parseInt(e.target.value) || 0, file.targetHeight || 0)}
+                                className="w-16 px-2 py-1 text-sm border rounded"
+                                disabled={file.status === 'converting'}
+                                min="1"
+                              />
+                              <span className="text-xs text-muted-foreground">×</span>
+                              <input
+                                type="number"
+                                value={file.targetHeight || ''}
+                                onChange={(e) => updateDimensions(file.id, file.targetWidth || 0, parseInt(e.target.value) || 0)}
+                                className="w-16 px-2 py-1 text-sm border rounded"
+                                disabled={file.status === 'converting'}
+                                min="1"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex items-center gap-2">
